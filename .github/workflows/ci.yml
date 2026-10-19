@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: linkpulse
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: linkpulse_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U linkpulse" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://linkpulse:ci_only_password@localhost:5432/linkpulse_test
+      TEST_REDIS_URL: redis://localhost:6379/1
+      # Only used by `prisma generate` / config parsing in CI; tests set their own values.
+      DATABASE_URL: postgresql://linkpulse:ci_only_password@localhost:5432/linkpulse_test
+      DIRECT_URL: postgresql://linkpulse:ci_only_password@localhost:5432/linkpulse_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+        working-directory: apps/api
+      - name: Lint
+        run: npm run lint
+      - name: Type-check
+        run: npm run typecheck
+      - name: API tests (unit + 15 edge cases)
+        run: npm test -w apps/api
+      - name: Web tests
+        run: npm test -w apps/web
+      - name: Build
+        run: npm run build

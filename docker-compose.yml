@@ -1,0 +1,18 @@
+# Local development only: Postgres + Redis. Production uses Neon + a hosted Redis.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: linkpulse
+      POSTGRES_PASSWORD: linkpulse_local_only
+      POSTGRES_DB: linkpulse
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+volumes:
+  pgdata:

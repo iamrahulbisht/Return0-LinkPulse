@@ -1,0 +1,44 @@
+# Render Blueprint: the API as a Docker web service.
+# Render → New → Blueprint → pick this repo. Secrets marked `sync: false` are asked for in the dashboard.
+services:
+  - type: web
+    name: linkpulse-api
+    runtime: docker
+    plan: free
+    # Singapore is the closest Render region to India; create the Neon project in AWS ap-southeast-1 too.
+    region: singapore
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Neon pooled connection string (host contains -pooler) + "&pgbouncer=true"
+      - key: DATABASE_URL
+        sync: false
+      # Neon direct connection string (no -pooler), used only for migrations
+      - key: DIRECT_URL
+        sync: false
+      # Hosted Redis, e.g. rediss://default:<password>@<host>:6379 (Upstash) or redis://… (Redis Cloud)
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: HASH_SALT
+        generateValue: true
+      # This service's own public URL, e.g. https://linkpulse-api.onrender.com (short links + QR codes)
+      - key: SHORT_BASE_URL
+        sync: false
+      # The Vercel app URL(s), comma-separated, e.g. https://linkpulse.vercel.app
+      - key: WEB_ORIGIN
+        sync: false
+      - key: RUN_WORKER
+        value: 'true'
+      - key: TRUST_PROXY_HOPS
+        value: '1'
+      - key: TZ_DISPLAY
+        value: Asia/Kolkata
+      # Set to 'false' if the 512 MB free instance runs out of memory (cities then show as "—").
+      - key: GEOIP_ENABLED
+        value: 'true'

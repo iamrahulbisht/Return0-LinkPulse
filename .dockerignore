@@ -1,0 +1,17 @@
+# Only the API is built into the image; keep secrets and local files out of the build context.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+.claude
+.vscode
+docs
+load
+apps/web/*
+!apps/web/package.json
+apps/api/tests
+*.log

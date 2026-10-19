@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Brand display font for the LINKPULSE wordmark (from the new UI reference). */
+@font-face {
+  font-family: 'Zentry';
+  src: url('./assets/fonts/zentry-regular.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* Dark theme tokens (new UI reference). Components use the Tailwind names; these are for raw CSS and charts. */
+:root {
+  color-scheme: dark; /* native date pickers, selects and scrollbars render dark */
+  --lp-black: #000000;
+  --lp-panel: #0a0a0c;
+  --lp-card: #121214;
+  --lp-card-2: #141416;
+  --lp-input: #1a1a1e;
+  --lp-border: #232328;
+  --lp-border-light: #2a2a32;
+  --lp-lime: #d4ff00;
+  --lp-lime-hover: #c4ec00;
+  --lp-text: #ffffff;
+  --lp-muted: #8e8e98;
+  --lp-placeholder: #82828f;
+  --lp-ok: #4ade80;
+  --lp-warn: #facc15;
+  --lp-danger: #f87171;
+  --lp-bot: #38bdf8;
+  --lp-radius-input: 12px;
+  --lp-radius-card: 16px;
+  --lp-touch: 44px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--lp-black);
+    color: var(--lp-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: var(--lp-lime);
+    color: #000;
+  }
+  /* :where() keeps specificity at zero, so Tailwind text-* classes on links and ButtonLink always win. */
+  :where(a) {
+    color: var(--lp-lime);
+  }
+  :where(a):hover {
+    color: #e6ff66;
+  }
+  :focus-visible {
+    outline: 3px solid var(--lp-lime);
+    outline-offset: 2px;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--lp-placeholder);
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  /* Option lists of native selects follow the dark theme. */
+  option {
+    background: var(--lp-input);
+    color: var(--lp-text);
+  }
+}
+
+/* Turn off the pulse and row-highlight animations for people who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

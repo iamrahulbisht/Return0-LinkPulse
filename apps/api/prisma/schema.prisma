@@ -1,0 +1,384 @@
+// LinkPulse data model. Tables are snake_case; Prisma models are PascalCase.
+// The Link record is the centre: everything else hangs off it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Neon: DATABASE_URL = the *pooled* connection string (host has "-pooler", add ?pgbouncer=true),
+// DIRECT_URL = the direct one. Migrations need the direct connection (PgBouncer breaks advisory locks).
+// Locally both are the same Docker Postgres.
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum MemberRole {
+  owner
+  member
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
+enum LinkStatus {
+  active
+  disabled
+}
+
+enum Device {
+  ios
+  android
+  desktop
+}
+
+enum ClickSource {
+  link
+  qr
+  bio
+}
+
+enum ClickType {
+  human
+  preview_bot
+  scanner
+  suspicious
+}
+
+enum AlertType {
+  expiring
+  near_limit
+  spike
+  bots
+  report
+  blocked
+}
+
+model User {
+  id                    String    @id @default(uuid()) @db.Uuid
+  email                 String    @unique
+  passwordHash          String    @map("password_hash")
+  name                  String
+  role                  Role      @default(user)
+  failedLogins          Int       @default(0) @map("failed_logins")
+  lockedUntil           DateTime? @map("locked_until") @db.Timestamptz
+  // Bumped by "sign out other devices" and password changes; sessions carry it and must match.
+  tokenVersion          Int       @default(0) @map("token_version")
+  // The workspace the user is working in. NULL or a workspace they left → their first membership.
+  activeWorkspaceId     String?   @map("active_workspace_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  // Admin user management (docs/design/admin-management.md). Status is derived from these, like link status.
+  suspendedAt           DateTime? @map("suspended_at") @db.Timestamptz
+  suspendedReason       String?   @map("suspended_reason")
+  mustChangePassword    Boolean   @default(false) @map("must_change_password")
+  tempPasswordExpiresAt DateTime? @map("temp_password_expires_at") @db.Timestamptz
+  lastLoginAt           DateTime? @map("last_login_at") @db.Timestamptz
+
+  activeWorkspace Workspace?        @relation("ActiveWorkspace", fields: [activeWorkspaceId], references: [id], onDelete: SetNull)
+  workspaces      Workspace[]       @relation("WorkspaceOwner")
+  members         WorkspaceMember[]
+  invitesSent     WorkspaceInvite[]
+  campaigns       Campaign[]
+  tags            Tag[]
+  links           Link[]
+  bioPages        BioPage[]
+  blocked         BlockedDomain[]
+  audit           AuditLog[]        @relation("AuditActor")
+  auditAbout      AuditLog[]        @relation("AuditSubject")
+  avatar          UserAvatar?
+
+  @@map("users")
+}
+
+/// Profile photo, kept out of "users" so normal user reads stay small. 256 × 256, resized in the browser.
+model UserAvatar {
+  userId    String   @id @map("user_id") @db.Uuid
+  mime      String
+  data      Bytes
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_avatars")
+}
+
+/// A shared space. Links, campaigns, tags, QR codes and bio pages belong to a workspace; every member can work on them.
+/// Only the owner (the creator) renames it and manages people.
+model Workspace {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  ownerId   String   @map("owner_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  owner     User     @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+
+  members   WorkspaceMember[]
+  invites   WorkspaceInvite[]
+  activeFor User[]            @relation("ActiveWorkspace")
+  folders   Folder[]
+  campaigns Campaign[]
+  links     Link[]
+  tags      Tag[]
+  bioPages  BioPage[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String     @map("workspace_id") @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  role        MemberRole @default(owner)
+  joinedAt    DateTime   @default(now()) @map("joined_at") @db.Timestamptz
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+/// An invitation by email. One row per (workspace, email): inviting again after a decline or a removal
+/// re-opens the same row as "pending", so there can never be two open invites for one person.
+model WorkspaceInvite {
+  id          String       @id @default(uuid()) @db.Uuid
+  workspaceId String       @map("workspace_id") @db.Uuid
+  // Lower-case. Matched against the signed-in user's email, so people can be invited before they sign up.
+  email       String
+  invitedBy   String       @map("invited_by") @db.Uuid
+  status      InviteStatus @default(pending)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  respondedAt DateTime?    @map("responded_at") @db.Timestamptz
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id])
+  inviter     User         @relation(fields: [invitedBy], references: [id])
+
+  @@unique([workspaceId, email])
+  @@index([email, status])
+  @@map("workspace_invites")
+}
+
+model Folder {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  name        String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  links       Link[]
+
+  @@map("folders")
+}
+
+model Campaign {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  ownerId     String    @map("owner_id") @db.Uuid
+  name        String
+  startsAt    DateTime? @map("starts_at") @db.Date
+  endsAt      DateTime? @map("ends_at") @db.Date
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  owner       User      @relation(fields: [ownerId], references: [id])
+  links       Link[]
+
+  @@index([ownerId])
+  @@index([workspaceId])
+  @@map("campaigns")
+}
+
+model Tag {
+  id          String    @id @default(uuid()) @db.Uuid
+  // Who made the tag first; access is by workspace.
+  ownerId     String    @map("owner_id") @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  name        String
+  owner       User      @relation(fields: [ownerId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  links       LinkTag[]
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model Link {
+  id             String     @id @default(uuid()) @db.Uuid
+  // The unique index on code is the final guard against two people saving the same alias.
+  code           String     @unique
+  customAlias    Boolean    @default(false) @map("custom_alias")
+  destination    String
+  ownerId        String     @map("owner_id") @db.Uuid
+  workspaceId    String     @map("workspace_id") @db.Uuid
+  folderId       String?    @map("folder_id") @db.Uuid
+  campaignId     String?    @map("campaign_id") @db.Uuid
+  title          String?
+  status         LinkStatus @default(active)
+  disabledReason String?    @map("disabled_reason")
+  expiresAt      DateTime?  @map("expires_at") @db.Timestamptz
+  fallbackUrl    String?    @map("fallback_url")
+  clickLimit     Int?       @map("click_limit")
+  clickCount     Int        @default(0) @map("click_count")
+  passwordHash   String?    @map("password_hash")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  owner     User           @relation(fields: [ownerId], references: [id])
+  workspace Workspace      @relation(fields: [workspaceId], references: [id])
+  folder    Folder?        @relation(fields: [folderId], references: [id])
+  campaign  Campaign?      @relation(fields: [campaignId], references: [id])
+  tags      LinkTag[]
+  rules     RedirectRule[]
+  qrCodes   QrCode[]
+  clicks    ClickEvent[]
+  alerts    LinkAlert[]
+  bioLinks  BioPageLink[]
+  audit     AuditLog[]
+
+  @@index([ownerId, status])
+  @@index([workspaceId, status])
+  @@index([campaignId])
+  @@map("links")
+}
+
+model LinkTag {
+  linkId String @map("link_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+  link   Link   @relation(fields: [linkId], references: [id])
+  tag    Tag    @relation(fields: [tagId], references: [id])
+
+  @@id([linkId, tagId])
+  @@map("link_tags")
+}
+
+model RedirectRule {
+  id          String @id @default(uuid()) @db.Uuid
+  linkId      String @map("link_id") @db.Uuid
+  device      Device
+  destination String
+  priority    Int
+  link        Link   @relation(fields: [linkId], references: [id])
+
+  @@index([linkId])
+  @@map("redirect_rules")
+}
+
+model QrCode {
+  id            String       @id @default(uuid()) @db.Uuid
+  linkId        String       @map("link_id") @db.Uuid
+  locationLabel String       @map("location_label")
+  fgColor       String       @default("#0B0B0F") @map("fg_color")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  link          Link         @relation(fields: [linkId], references: [id])
+  clicks        ClickEvent[]
+
+  @@index([linkId])
+  @@map("qr_codes")
+}
+
+model ClickEvent {
+  id          BigInt      @id @default(autoincrement())
+  linkId      String      @map("link_id") @db.Uuid
+  qrId        String?     @map("qr_id") @db.Uuid
+  clickedAt   DateTime    @map("clicked_at") @db.Timestamptz
+  source      ClickSource
+  referrer    String?
+  device      String
+  os          String?
+  browser     String?
+  country     String?
+  city        String?
+  // sha256(ip + user agent + IST date + salt). The raw IP is never stored.
+  visitorHash String      @map("visitor_hash")
+  clickType   ClickType   @map("click_type")
+  // True only for human clicks that passed the click limit.
+  counted     Boolean
+  link        Link        @relation(fields: [linkId], references: [id])
+  qr          QrCode?     @relation(fields: [qrId], references: [id])
+
+  @@index([linkId, clickedAt])
+  @@index([clickedAt])
+  @@map("click_events")
+}
+
+model BlockedDomain {
+  id        String   @id @default(uuid()) @db.Uuid
+  domain    String   @unique
+  reason    String
+  addedBy   String?  @map("added_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user      User?    @relation(fields: [addedBy], references: [id])
+
+  @@map("blocked_domains")
+}
+
+model AuditLog {
+  id            BigInt   @id @default(autoincrement())
+  actorId       String?  @map("actor_id") @db.Uuid
+  linkId        String?  @map("link_id") @db.Uuid
+  action        String
+  target        String
+  oldValue      Json?    @map("old_value")
+  newValue      Json?    @map("new_value")
+  reason        String?
+  // The account an admin action was about (suspend, reset password, ...); NULL for link and domain rows.
+  subjectUserId String?  @map("subject_user_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  actor         User?    @relation("AuditActor", fields: [actorId], references: [id])
+  subject       User?    @relation("AuditSubject", fields: [subjectUserId], references: [id])
+  link          Link?    @relation(fields: [linkId], references: [id])
+
+  @@index([linkId, createdAt])
+  @@index([subjectUserId, createdAt])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model BioPage {
+  id          String        @id @default(uuid()) @db.Uuid
+  ownerId     String        @map("owner_id") @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  slug        String        @unique
+  title       String
+  description String?
+  theme       String        @default("dark")
+  owner       User          @relation(fields: [ownerId], references: [id])
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id])
+  links       BioPageLink[]
+
+  @@index([workspaceId])
+  @@map("bio_pages")
+}
+
+model BioPageLink {
+  pageId   String  @map("page_id") @db.Uuid
+  linkId   String  @map("link_id") @db.Uuid
+  position Int
+  label    String
+  page     BioPage @relation(fields: [pageId], references: [id])
+  link     Link    @relation(fields: [linkId], references: [id])
+
+  @@id([pageId, linkId])
+  @@map("bio_page_links")
+}
+
+model LinkAlert {
+  id          String    @id @default(uuid()) @db.Uuid
+  linkId      String    @map("link_id") @db.Uuid
+  type        AlertType
+  message     String
+  // How many times it happened (used for visitor reports).
+  count       Int       @default(1)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  seenAt      DateTime? @map("seen_at") @db.Timestamptz
+  // Set when an admin marks a flag as "Looks fine".
+  dismissedAt DateTime? @map("dismissed_at") @db.Timestamptz
+  link        Link      @relation(fields: [linkId], references: [id])
+
+  @@unique([linkId, type])
+  @@map("link_alerts")
+}

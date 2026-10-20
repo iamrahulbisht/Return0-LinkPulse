@@ -99,10 +99,10 @@ export function Landing() {
       <style>{'@keyframes lpDraw{from{stroke-dashoffset:1600}to{stroke-dashoffset:0}}'}</style>
 
       {/* HERO */}
-      <section className={`relative px-4 pb-[120px] text-white sm:px-6 ${GRID_BG}`}>
+      <section className={`relative flex min-h-screen flex-col justify-between px-4 pb-20 text-white sm:px-6 ${GRID_BG}`}>
         {/* One row at every width: on phones the buttons get compact and, below 360px, the wordmark is
             visually hidden (still read by screen readers) so "Sign in" and "Get started" never wrap. */}
-        <nav aria-label="Main" className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 py-5 sm:gap-6 sm:py-6">
+        <nav aria-label="Main" className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-3 py-5 sm:gap-6 sm:py-6">
           <Link to="/" className="flex min-w-0 items-center gap-2 text-white no-underline hover:text-white sm:gap-2.5">
             <LogoMark size={34} />
             <span className="font-display text-[19px] font-bold tracking-[-0.02em] max-[359px]:sr-only sm:text-[22px]">LinkPulse</span>
@@ -130,22 +130,13 @@ export function Landing() {
           </div>
         </nav>
 
-        <div className="mx-auto mt-10 grid max-w-[1240px] grid-cols-[repeat(auto-fit,minmax(min(500px,100%),1fr))] items-center gap-12 sm:mt-14 lg:gap-[72px]">
-          <Reveal className="flex flex-col gap-7">
-            <div className="inline-flex items-center gap-2.5 self-start rounded-full border border-[rgba(212,255,0,.16)] bg-[rgba(212,255,0,.16)] px-3.5 py-2 text-[14px] text-accent-300">
-              <span className="relative inline-block h-2 w-2 flex-none">
-                <span className="absolute inset-0 animate-ping rounded-full bg-accent-400 motion-reduce:animate-none" />
-                <span className="absolute inset-0 rounded-full bg-accent-400" />
-              </span>
-              Live click tracking. Bots are never counted.
-            </div>
-            <h1 className="m-0 font-display text-[44px] font-[750] leading-none tracking-[-0.035em] [text-wrap:balance] sm:text-[60px] lg:text-[76px]">
+        <div className="mx-auto my-auto flex max-w-[900px] flex-col items-center text-center py-10">
+          <Reveal className="flex flex-col items-center text-center gap-7">
+            <h1 className="m-0 font-display text-[44px] font-[750] leading-none tracking-[-0.035em] [text-wrap:balance] sm:text-[60px] lg:text-[76px] text-center">
               Short links you stay <span className="text-accent-400">in control</span> of.
             </h1>
-            <p className="m-0 max-w-[540px] text-[18px] leading-[1.6] text-[#C6C6CF] [text-wrap:pretty] sm:text-[20px]">
-              Make a link in two steps, send every visit through the same safety checks, and watch real human clicks arrive live. Switch it off the moment someone misuses it.
-            </p>
-            <div className="flex flex-wrap gap-3.5">
+
+            <div className="flex flex-wrap justify-center gap-3.5">
               <Link to={start} className={`${PRIMARY} min-h-[56px] px-[26px] py-4 text-[17px]`}>
                 Shorten your first link
                 <Arrow />
@@ -154,18 +145,14 @@ export function Landing() {
                 See how a click travels
               </a>
             </div>
-            <ul className="m-0 flex list-none flex-wrap gap-x-7 gap-y-3 p-0 pt-2 text-[14.5px] text-[#9C9CA8]">
-              {['Every visit checked (302)', 'Exact click limits', 'No raw IPs stored'].map((t) => (
+            <ul className="m-0 flex list-none flex-wrap justify-center gap-x-7 gap-y-3 p-0 pt-2 text-[14.5px] text-[#9C9CA8]">
+              {['Every visit checked', 'Exact click limits', 'No raw IPs stored'].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <Icon name="check" size={16} strokeWidth={2.4} className="text-accent-400" />
                   {t}
                 </li>
               ))}
             </ul>
-          </Reveal>
-          {/* Phones skip the demo (the hero is long enough there); tablets and up show it. */}
-          <Reveal className="hidden md:block" delay={150}>
-            <HeroDemo />
           </Reveal>
         </div>
 
@@ -324,26 +311,7 @@ export function Landing() {
         </Reveal>
       </section>
 
-      <footer className="bg-ink px-4 py-10 text-[#9C9CA8] sm:px-6">
-        {/* Phones: one centred column. From md up: logo, credit and links in one row. */}
-        <div className="mx-auto flex max-w-[1240px] flex-col items-center gap-4 text-center text-[14px] md:flex-row md:flex-wrap md:justify-between md:gap-6 md:text-left">
-          <div className="flex items-center gap-2.5 text-white">
-            <LogoMark size={26} />
-            <span className="font-display text-[18px] font-bold">LinkPulse</span>
-          </div>
-          <span className="max-w-[300px] leading-relaxed [text-wrap:balance] md:max-w-none">
-            Built by Team Return 0 · Graphic Era Hill University, Haldwani
-          </span>
-          <div className="flex justify-center gap-6">
-            <Link to="/brand" className="flex min-h-[44px] items-center text-[#C6C6CF] hover:text-white">
-              Brand guide
-            </Link>
-            <Link to={me ? '/dashboard' : '/login'} className="flex min-h-[44px] items-center text-[#C6C6CF] hover:text-white">
-              {me ? 'Dashboard' : 'Sign in'}
-            </Link>
-          </div>
-        </div>
-      </footer>
+      
     </div>
   );
 }

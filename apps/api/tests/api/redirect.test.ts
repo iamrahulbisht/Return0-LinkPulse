@@ -146,6 +146,53 @@ describe('edge case 8: wrong password', () => {
     expect(go.headers.location).toBe('https://example.com/secret');
     expect((await prisma.link.findUniqueOrThrow({ where: { id: l.id } })).clickCount).toBe(1);
   });
+
+  it('one unlock is one count, even when the browser preloads the link (was +2)', async () => {
+    const l = await create({ destination: 'https://example.com/once', alias: 'private-once', password: 'judge-pass' });
+    const agent = request.agent(srv);
+    const ip = nextIp();
+    const ok = await agent.post('/private-once/unlock').set('User-Agent', HUMAN_UA).set('X-Forwarded-For', ip).type('form').send({ password: 'judge-pass', src: 'qr' });
+    expect(ok.status).toBe(200);
+    // No <a href> to the short link (Chrome preloads links); "Continue now" is a GET form that keeps ?src.
+    expect(ok.text).not.toMatch(/<a [^>]*href="\/private-once/);
+    expect(ok.text).toContain('<form method="get" action="/private-once"><input type="hidden" name="src" value="qr">');
+    expect(ok.text).toContain('Continue now');
+
+    // Chrome prefetch / prerender of the unlocked link is refused and not counted.
+    for (const h of [{ 'Sec-Purpose': 'prefetch' }, { 'Sec-Purpose': 'prefetch;prerender' }, { Purpose: 'prefetch' }]) {
+      const pre = await agent.get('/private-once').set('User-Agent', HUMAN_UA).set('X-Forwarded-For', ip).set(h).redirects(0);
+      expect(pre.status).toBe(503);
+    }
+    expect((await prisma.link.findUniqueOrThrow({ where: { id: l.id } })).clickCount).toBe(0);
+
+    // The real visit counts once.
+    const go = await agent.get('/private-once?src=qr').set('User-Agent', HUMAN_UA).set('X-Forwarded-For', ip).redirects(0);
+    expect(go.status).toBe(302);
+    expect(go.headers.location).toBe('https://example.com/once');
+    expect((await prisma.link.findUniqueOrThrow({ where: { id: l.id } })).clickCount).toBe(1);
+    await waitFor(() => prisma.clickEvent.count({ where: { linkId: l.id, counted: true } }), (n) => n === 1);
+  });
+
+  it('a public link: a browser prefetch is refused and not counted; the real visit counts once', async () => {
+    const l = await create({ destination: 'https://example.com/pub', alias: 'public-pre' });
+    const ip = nextIp();
+    expect((await visit('/public-pre', HUMAN_UA, ip).set('Sec-Purpose', 'prefetch')).status).toBe(503);
+    expect((await prisma.link.findUniqueOrThrow({ where: { id: l.id } })).clickCount).toBe(0);
+    expect((await visit('/public-pre', HUMAN_UA, ip)).status).toBe(302);
+    expect((await prisma.link.findUniqueOrThrow({ where: { id: l.id } })).clickCount).toBe(1);
+  });
+
+  it('a HEAD request (link checker) still redirects but is logged as a scanner, never counted', async () => {
+    const l = await create({ destination: 'https://example.com/head', alias: 'head-check', clickLimit: 1 });
+    const r = await request(srv).head('/head-check').set('User-Agent', HUMAN_UA).set('X-Forwarded-For', nextIp()).redirects(0);
+    expect(r.status).toBe(302);
+    expect(r.headers.location).toBe('https://example.com/head');
+    const rows = await waitFor(() => clicks(l.id), (x) => x.length === 1);
+    expect(rows[0]).toMatchObject({ clickType: 'scanner', counted: false });
+    expect((await prisma.link.findUniqueOrThrow({ where: { id: l.id } })).clickCount).toBe(0);
+    // It did not use up the only slot: a person still gets in.
+    expect((await visit('/head-check')).status).toBe(302);
+  });
 });
 
 describe('edge case 9: preview bots', () => {

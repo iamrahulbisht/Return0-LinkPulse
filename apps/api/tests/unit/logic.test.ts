@@ -103,10 +103,21 @@ describe('bot detection', () => {
     ['curl/8.4.0', 'preview_bot'],
     ['python-requests/2.31', 'preview_bot'],
     ['Mozilla/5.0 HeadlessChrome/120', 'preview_bot'],
+    // Missed by the old 17-word list (counted as human):
+    ['Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)', 'preview_bot'],
+    ['Iframely/1.3.1 (+https://iframely.com/docs/about)', 'preview_bot'],
+    ['Go-http-client/1.1', 'preview_bot'],
+    ['axios/1.6.7', 'preview_bot'],
+    ['okhttp/4.12.0', 'preview_bot'],
+    ['Java/17.0.2', 'preview_bot'],
+    ['PostmanRuntime/7.36.1', 'preview_bot'],
+    ['Mozilla/5.0 (compatible; Yahoo! Slurp; http://help.yahoo.com/help/us/ysearch/slurp)', 'preview_bot'],
     ['Microsoft Office SafeLinks scanner', 'scanner'],
     ['', 'suspicious'],
     [HUMAN_UA, 'human'],
     [IPHONE_UA, 'human'],
+    // A real phone the old list called a bot ("CUBOT" contains "bot").
+    ['Mozilla/5.0 (Linux; Android 10; CUBOT X30) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36', 'human'],
   ])('%s → %s', (ua, type) => expect(classifyUserAgent(ua)).toBe(type));
   it('more than 10 hits in 10 s is suspicious', () => {
     expect(isBurst(10)).toBe(false);

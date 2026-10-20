@@ -2,9 +2,10 @@
 import { useCallback, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import type { Link, LinkStatus } from '../types';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { fmtDay, prettyUrl } from '../lib/format';
 import { useAsync } from '../hooks/useAsync';
+import { useAuth } from '../hooks/useAuth';
 import { useLiveClicks } from '../hooks/useLiveClicks';
 import { useToast } from '../hooks/useToast';
 import { Button, ButtonLink, ErrorState, ShortLink, Skeleton, StatusBadge } from '../components/ui';
@@ -18,8 +19,11 @@ import { RecentVisits, visitFromLive } from '../components/link-details/RecentVi
 import { HistoryList, ScansByPoster } from '../components/link-details/SidePanels';
 import { EditLinkDialog } from '../components/link-details/EditLinkDialog';
 import { ChangeStateDialog } from '../components/link-details/ChangeStateDialog';
+import { DisableDialog } from '../components/admin/DisableDialog';
+import { RestoreDialog } from '../components/admin/RestoreDialog';
 
 const VISIT_ROWS = 20;
+const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback);
 
 const STATE_TOAST: Record<LinkStatus, string> = {
   active: 'The link is active again.',
@@ -55,6 +59,7 @@ export function LinkDetails() {
   const { id = '' } = useParams<{ id: string }>();
   const toast = useToast();
   const { copy } = useCopy();
+  const isAdmin = useAuth().me?.user.role === 'admin';
 
   const detail = useAsync(() => api.links.get(id), [id]);
   const clicks = useAsync(() => api.links.clicks(id, VISIT_ROWS), [id]);
@@ -68,6 +73,14 @@ export function LinkDetails() {
   const [editOpen, setEditOpen] = useState(false);
   const [freshIds, setFreshIds] = useState<Set<string>>(() => new Set());
   const closeEdit = useCallback(() => setEditOpen(false), []);
+  // Admin takedown / restore from "Link life" (same dialogs and API as the Admin page).
+  const [adminAsk, setAdminAsk] = useState<'disable' | 'restore' | null>(null);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminError, setAdminError] = useState<{ reason: string | null; other: string | null }>({ reason: null, other: null });
+  const closeAdminAsk = useCallback(() => {
+    setAdminAsk(null);
+    setAdminError({ reason: null, other: null });
+  }, []);
 
   const live = useLiveClicks(
     (c) => {
@@ -131,6 +144,42 @@ export function LinkDetails() {
   }
 
   const { link, stats, scansByQr, adminView = false } = detail.data;
+
+  const pickState = (s: LinkStatus) => {
+    if (isAdmin && s === 'disabled' && link.status !== 'disabled') return setAdminAsk('disable');
+    if (isAdmin && s === 'active' && link.status === 'disabled') return setAdminAsk('restore');
+    setStateAsk({ id, state: s });
+  };
+
+  const confirmAdmin = async (reason: string) => {
+    const kind = adminAsk;
+    if (!kind) return;
+    setAdminBusy(true);
+    setAdminError({ reason: null, other: null });
+    try {
+      if (kind === 'disable') await api.admin.disable(link.id, reason);
+      else await api.admin.restore(link.id, reason);
+      setDetail((prev) =>
+        prev
+          ? { ...prev, link: { ...prev.link, status: kind === 'disable' ? 'disabled' : 'active', disabledReason: kind === 'disable' ? reason : null } }
+          : prev,
+      );
+      setAdminAsk(null);
+      void reloadDetail(true);
+      void reloadHistory(true);
+      toast(kind === 'disable' ? 'Disabled. Redirects stopped. Click Active to restore it.' : 'Restored. It redirects again.');
+    } catch (e) {
+      const field = kind === 'restore' && e instanceof ApiError ? e.fieldMessage('reason') : undefined;
+      setAdminError(
+        field
+          ? { reason: field, other: null }
+          : { reason: null, other: errText(e, kind === 'disable' ? 'Could not disable the link. Please try again.' : 'Could not restore. Please try again.') },
+      );
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
   const liveChip =
     live.mode === 'live'
       ? { text: 'Live', tone: 'live' as const }
@@ -213,7 +262,7 @@ export function LinkDetails() {
           </div>
         )}
 
-        <LifeStrip link={link} onPick={(s) => setStateAsk({ id, state: s })} />
+        <LifeStrip link={link} isAdmin={isAdmin} onPick={pickState} />
       </section>
 
       <LinkKpis link={link} stats={stats} />
@@ -241,6 +290,26 @@ export function LinkDetails() {
       {editOpen && <EditLinkDialog link={link} adminView={adminView} onClose={closeEdit} onSaved={onSaved} />}
       {askState && (
         <ChangeStateDialog key={askState} link={link} target={askState} adminView={adminView} onClose={closeStateAsk} onChanged={onStateChanged} />
+      )}
+      {isAdmin && (
+        <>
+          <DisableDialog
+            code={adminAsk === 'disable' ? link.code : null}
+            busy={adminBusy}
+            error={adminError.other}
+            onCancel={closeAdminAsk}
+            onConfirm={(r) => void confirmAdmin(r)}
+          />
+          <RestoreDialog
+            code={adminAsk === 'restore' ? link.code : null}
+            disabledReason={link.disabledReason}
+            busy={adminBusy}
+            reasonError={adminError.reason}
+            error={adminError.other}
+            onCancel={closeAdminAsk}
+            onConfirm={(r) => void confirmAdmin(r)}
+          />
+        </>
       )}
     </>
   );

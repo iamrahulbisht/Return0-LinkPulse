@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { fmtNum } from '../../lib/format';
-import type { ImportPreview, ImportResult, ImportRow } from '../../types';
+import { fmtNum } from '../lib/format';
+import type { ImportPreview, ImportResult, ImportRow } from '../types';
 
 /** A row as shown in the report: the API result, or "imported" once the commit created the link. */
 export type ReportRow = ImportRow & { imported?: boolean };

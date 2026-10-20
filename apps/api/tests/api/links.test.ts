@@ -125,6 +125,21 @@ describe('edge case 6: expiry date in the past', () => {
   });
 });
 
+describe('links list order', () => {
+  it('is newest first by creation time, not by clicks', async () => {
+    await makeUser('order@test.dev');
+    const o = await loginAs(srv, 'order@test.dev');
+    const ids: string[] = [];
+    for (const n of [1, 2, 3]) {
+      ids.push((await o.post('/api/links').send({ destination: `https://order-${n}.example.com` }).expect(201)).body.link.id);
+    }
+    // The oldest link has the most clicks: before the fix it was listed first.
+    await prisma.link.update({ where: { id: ids[0] }, data: { clickCount: 50 } });
+    const list = await o.get('/api/links?pageSize=100').expect(200);
+    expect(list.body.items.map((l: { id: string }) => l.id)).toEqual([ids[2], ids[1], ids[0]]);
+  });
+});
+
 describe('edge case 11: User A changes the id in the URL to see User B', () => {
   it('returns 403 on every :id route', async () => {
     const created = await b.post('/api/links').send({ destination: 'https://b-only.example.com' }).expect(201);

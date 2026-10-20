@@ -147,7 +147,8 @@ linksRouter.get(
       prisma.link.findMany({
         where,
         include: linkInclude,
-        orderBy: [{ clickCount: 'desc' }, { createdAt: 'desc' }],
+        // Newest first; id breaks ties so pages never repeat or skip a link.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
       }),

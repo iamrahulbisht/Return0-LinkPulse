@@ -60,7 +60,6 @@ LinkPulse treats every link click as an **evaluated execution pipeline** rather 
 <p align="center">
   <img
     <img width="603" height="574" alt="Image" src="https://github.com/user-attachments/assets/524d0f21-190a-4567-b3f7-1e20a57dc29c" />
-  />
 </p>
 
 ### Architectural Safeguards
@@ -138,14 +137,6 @@ LinkPulse is tested against 15 real-world edge cases to ensure rock-solid stabil
 2. **Predictive AI**: Redirect routing demands exact, deterministic rule logic, not statistical approximations.
 3. **NoSQL Databases**: Link states, workspaces, audit logs, and click limits require strict ACID relational transactions.
 4. **Permanent 301 Redirects**: Browser caching breaks dynamic expiration, password gates, and instant killswitches.
-
----
-
-## Privacy & GDPR Compliance
-
-No raw IP addresses are ever saved to disk or persistent databases. Visitor identities are anonymized in memory:
-$$\text{visitor\_hash} = \text{SHA-256}(\text{IP} + \text{UserAgent} + \text{Daily IST Date} + \text{HASH\_SALT})$$
-This allows the system to compute unique human visitor counts accurately while guaranteeing user privacy.
 
 ---
 

@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon';
 import { LogoMark } from '../components/Logo';
 
 type Mode = 'signin' | 'signup';
-type FieldName = 'name' | 'email' | 'password';
+type FieldName = 'name' | 'email' | 'password' | 'confirmPassword';
 
 /** Only same-app paths, so a crafted link cannot send people to another site after sign-in. */
 function safeFrom(state: unknown): string {
@@ -66,13 +66,16 @@ export function Login() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [show, setShow] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const errorId = useId();
 
   if (loading) {
@@ -92,12 +95,15 @@ export function Login() {
     setError(null);
     setFieldErrors({});
     setShow(false);
+    setShowConfirm(false);
+    setConfirmPassword('');
   };
 
   const focusFirst = (errs: Partial<Record<FieldName, string>>) => {
     if (errs.name) nameRef.current?.focus();
     else if (errs.email) emailRef.current?.focus();
     else if (errs.password) passwordRef.current?.focus();
+    else if (errs.confirmPassword) confirmPasswordRef.current?.focus();
   };
 
   const submit = async (e: FormEvent) => {
@@ -107,6 +113,10 @@ export function Login() {
     if (!email.trim()) errs.email = 'Enter your email.';
     if (!password) errs.password = 'Enter your password.';
     else if (signup_ && password.length < 8) errs.password = 'Use at least 8 characters.';
+    if (signup_) {
+      if (!confirmPassword) errs.confirmPassword = 'Confirm your password.';
+      else if (password && confirmPassword !== password) errs.confirmPassword = 'Passwords do not match.';
+    }
     setFieldErrors(errs);
     setError(null);
     if (Object.keys(errs).length) {
@@ -151,19 +161,17 @@ export function Login() {
             <LogoMark size={50} />
           </span>
           <span className="font-zentry text-[34px] font-black uppercase leading-[1.1] tracking-[-0.02em] text-white">LinkPulse</span>
-          <span className="mt-2 text-[13.5px] text-text-4">
-            Every click, <span className="text-accent-400">accounted for.</span> Bots never count.
-          </span>
+
         </div>
+        
 
         <form onSubmit={submit} noValidate aria-describedby={error ? errorId : undefined} className="flex w-full flex-col gap-3.5">
           <div className="mb-1 flex flex-col gap-1">
             <h1 className="m-0 font-display text-[22px] font-bold tracking-tight">{signup_ ? 'Create an account' : 'Sign in'}</h1>
             <p className="m-0 text-[14px] text-text-4">
-              {signup_ ? 'Make links, campaigns and QR codes in one place.' : 'Welcome back. Use your college or team email.'}
+              {signup_ ? 'Make links, campaigns and QR codes in one place.' : 'Welcome back. Use your email.'}
             </p>
           </div>
-
           {signup_ && (
             <AuthInput
               ref={nameRef}
@@ -213,6 +221,30 @@ export function Login() {
             }
           />
 
+          {signup_ && (
+            <AuthInput
+              ref={confirmPasswordRef}
+              label="Confirm password"
+              type={showConfirm ? 'text' : 'password'}
+              autoComplete="new-password"
+              maxLength={200}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              error={fieldErrors.confirmPassword}
+              trailing={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((s) => !s)}
+                  aria-pressed={showConfirm}
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  className="absolute right-1 top-0.5 h-11 min-w-[56px] cursor-pointer rounded-[8px] border-0 bg-transparent px-2 text-[13.5px] font-semibold text-text-4 transition-colors hover:text-accent-400"
+                >
+                  {showConfirm ? 'Hide' : 'Show'}
+                </button>
+              }
+            />
+          )}
+
           {error && (
             <p id={errorId} role="alert" className="m-0 flex items-start gap-2 rounded-lg border border-[rgba(255,77,77,0.3)] bg-[rgba(255,77,77,0.12)] px-3.5 py-3 text-[13.5px] font-medium text-[#FF8A8A]">
               <Icon name="warn" size={17} className="mt-px flex-none" />
@@ -242,13 +274,10 @@ export function Login() {
             </button>
           </p>
 
-          <p className="m-0 flex items-start justify-center gap-2 text-center text-[12.5px] leading-[1.55] text-text-4">
-            <Icon name="shield" size={15} className="mt-0.5 flex-none" />
-            After 5 wrong tries we pause sign-in for a short time to keep your account safe.
-          </p>
+          
         </form>
       </main>
-      <span className="mt-6 text-[13px] text-text-4">Opening a short link? You do not need an account.</span>
+      
     </div>
   );
 }

@@ -59,8 +59,7 @@ LinkPulse treats every link click as an **evaluated execution pipeline** rather 
 
 <p align="center">
   <img
-    src="https://github.com/user-attachments/assets/7fdcd7f3-64a0-4e6f-82a5-f6beffa70b0f"
-    width="100%"
+    <img width="603" height="574" alt="Image" src="https://github.com/user-attachments/assets/524d0f21-190a-4567-b3f7-1e20a57dc29c" />
   />
 </p>
 

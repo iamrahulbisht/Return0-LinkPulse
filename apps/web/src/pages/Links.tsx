@@ -160,7 +160,7 @@ export function Links() {
             </option>
           ))}
         </Select>
-        <span className="ml-auto text-[13.5px] text-text-4">Sorted by most clicks</span>
+        <span className="ml-auto text-[13.5px] text-text-4">Sorted by newest first</span>
       </div>
 
       <section

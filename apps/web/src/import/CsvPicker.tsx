@@ -1,6 +1,6 @@
 import { useId, useState, type DragEvent, type ReactNode } from 'react';
-import { Icon } from '../Icon';
-import { Spinner, btnClass } from '../ui';
+import { Icon } from '../components/Icon';
+import { Spinner, btnClass } from '../components/ui';
 
 const MAX_BYTES = 1024 * 1024; // same limit as the API (multer fileSize)
 

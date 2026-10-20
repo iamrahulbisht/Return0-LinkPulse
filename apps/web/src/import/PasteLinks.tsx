@@ -1,6 +1,6 @@
 import { useId, type FormEvent, type ReactNode } from 'react';
-import { plural } from '../../lib/format';
-import { Button } from '../ui';
+import { plural } from '../lib/format';
+import { Button } from '../components/ui';
 
 export const MAX_PASTE_LINKS = 500; // same limit as the API (MAX_ROWS)
 export const MAX_PASTE_CHARS = 150_000; // same limit as the API (MAX_PASTE_CHARS)

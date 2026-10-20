@@ -100,6 +100,11 @@ async function isDestinationBlocked(dest: string): Promise<boolean> {
   return !!host && !!findBlockedDomain(host, await getBlockedDomains());
 }
 
+/** A browser preload (Chrome prefetch / prerender), not a person opening the link. */
+function isSpeculative(req: Request): boolean {
+  return /prefetch|prerender/i.test(`${req.get('sec-purpose') ?? ''} ${req.get('purpose') ?? ''}`);
+}
+
 function isUnlocked(req: Request, link: LinkSnapshot): boolean {
   const v = req.signedCookies?.[unlockCookie(link.code)];
   return typeof v === 'string' && v === link.id;
@@ -130,7 +135,9 @@ async function handleVisit(req: Request, res: Response): Promise<void> {
   }
   const v = visitor(req);
   const { source, qrId } = parseSource(req.query as Record<string, unknown>);
-  const uaType = classifyUserAgent(v.ua);
+  // Express answers HEAD with this GET handler. A HEAD is a link checker or unfurler, never a person
+  // opening the link, so it still gets the redirect but is logged as a scanner and never counted.
+  const uaType = req.method === 'HEAD' ? 'scanner' : classifyUserAgent(v.ua);
   // Burst check counts every hit from this visitor on this link in a 10-second window.
   const hits = uaType === 'human' ? await incrWithTtl(`burst:${link.id}:${v.vh}`, BURST_WINDOW_SECONDS) : 0;
   const clickType = finalClickType(uaType, hits);
@@ -190,6 +197,12 @@ async function handleVisit(req: Request, res: Response): Promise<void> {
     case 'count_then_redirect': {
       let counted = false;
       if (decision.kind === 'count_then_redirect') {
+        // Refuse a browser preload (Chrome prefetches links on screen, e.g. on bio pages or after unlock)
+        // so only the real visit counts. A non-2xx makes the browser drop the preload and load it for real.
+        if (isSpeculative(req)) {
+          res.status(503).set('Cache-Control', 'no-store').end();
+          return;
+        }
         // 6. Under the limit?
         counted = await takeSlot(link.id);
         if (!counted) {

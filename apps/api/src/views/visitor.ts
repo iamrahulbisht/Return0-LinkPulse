@@ -35,6 +35,31 @@ a{color:#D4FF00}a:hover{color:#E6FF66}
 .lp-in:focus{outline:none;border-color:#D4FF00 !important;background:#1F1F24;box-shadow:0 0 0 3px rgba(212,255,0,.16)}
 .card{width:100%;max-width:430px;min-height:100vh;background:#0A0A0C;display:flex;flex-direction:column;overflow:hidden}
 @media (min-width:480px){body{padding:32px 16px}.card{min-height:844px;border-radius:28px;border:1px solid #232328;box-shadow:0 25px 60px rgba(0,0,0,.85)}}
+/* Status pages (404/410/429) fit the screen: the card is one viewport tall and the art on top shrinks first.
+   dvh follows the phone's address bar; the vh line before it is the fallback for older browsers. */
+body:has(.card-fit){min-height:100vh;min-height:100dvh}
+.card-fit{height:100vh;height:100dvh;min-height:0;overflow-y:auto}
+@media (min-width:480px){.card-fit{height:calc(100vh - 64px);height:calc(100dvh - 64px);max-height:844px}}
+.fit-hero{flex:1 1 300px;max-height:300px;min-height:180px}
+/* Short screens (small laptops, landscape, small phones): tighter spacing so it still fits without scrolling.
+   !important only beats this page's own inline styles. */
+@media (max-height:700px){
+  @media (min-width:480px){body:has(.card-fit){padding:12px 16px}.card-fit{height:calc(100vh - 24px);height:calc(100dvh - 24px)}}
+  .fit-hero{min-height:136px}
+  .fit-icon{width:72px !important;height:72px !important;border-radius:20px !important}
+  .fit-icon svg{width:34px;height:34px}
+  .fit-hero .fm{bottom:10px !important}
+  .fit-body{padding:20px 22px !important;gap:10px !important}
+  .fit-title{font-size:26px !important}
+  .fit-actions{padding-top:10px !important}
+}
+@media (max-height:600px){.fit-brand{display:none !important}}
+/* Portrait tablets: a wider card, centred on the screen, and the art grows, instead of a phone-sized card stuck at the top. */
+@media (min-width:600px) and (orientation:portrait) and (min-height:900px){
+  body:has(.card-fit){align-items:center;padding:64px 24px}
+  .card-fit{max-width:560px;height:calc(100vh - 128px);height:calc(100dvh - 128px);max-height:1000px;border-radius:32px}
+  .fit-hero{flex-basis:420px;max-height:420px}
+}
 .btn{display:flex;align-items:center;justify-content:center;height:52px;border-radius:12px;font-family:'Outfit','Space Grotesk',sans-serif;font-size:16px;font-weight:700;text-decoration:none;border:0;cursor:pointer;transition:background-color .2s,box-shadow .2s,transform .15s}
 .btn-primary{background:#D4FF00;color:#000000;box-shadow:0 2px 14px rgba(212,255,0,.25)}
 .btn-primary:hover{background:#C4EC00;color:#000000;box-shadow:0 4px 20px rgba(212,255,0,.35)}
@@ -72,23 +97,23 @@ export function statusPage(o: StatusPageOpts): string {
       : '';
   return shell(
     o.title,
-    `<main class="card">
-  <div class="grid-bg" style="height:300px;display:flex;align-items:center;justify-content:center;position:relative;flex:none;border-bottom:1px solid #1F1F24;background-color:${o.tint}">
-    <span style="width:112px;height:112px;border-radius:30px;background:#141416;border:1px solid #2A2A32;display:flex;align-items:center;justify-content:center;box-shadow:0 0 28px ${o.ink}33">
+    `<main class="card card-fit">
+  <div class="grid-bg fit-hero" style="display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid #1F1F24;background-color:${o.tint}">
+    <span class="fit-icon" style="width:112px;height:112px;border-radius:30px;background:#141416;border:1px solid #2A2A32;display:flex;align-items:center;justify-content:center;box-shadow:0 0 28px ${o.ink}33">
       <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="${o.ink}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${o.icon}"></path></svg>
     </span>
     <span class="fm" style="position:absolute;bottom:20px;font-size:14px;color:${o.ink};font-weight:600;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.shortUrl)}</span>
   </div>
-  <div style="padding:32px 26px;display:flex;flex-direction:column;gap:14px;flex:1">
+  <div class="fit-body" style="padding:32px 26px;display:flex;flex-direction:column;gap:14px;flex:1">
     <span class="fm" style="align-self:flex-start;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:${o.tint};color:${o.ink};border:1px solid ${o.ink}55">${o.code}</span>
-    <h1 class="fd" style="margin:0;font-size:30px;line-height:1.08;letter-spacing:-0.02em;font-weight:700;color:#FFFFFF">${esc(o.title)}</h1>
+    <h1 class="fd fit-title" style="margin:0;font-size:30px;line-height:1.08;letter-spacing:-0.02em;font-weight:700;color:#FFFFFF">${esc(o.title)}</h1>
     <p style="margin:0;font-size:16px;line-height:1.6;color:#A1A1AA">${esc(o.body)}</p>
     ${hint}
-    <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:24px">
+    <div class="fit-actions" style="margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:24px">
       <a class="btn btn-primary" href="${esc(o.cta.href)}">${esc(o.cta.label)}</a>
       ${second}
     </div>
-    <span style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:#8E8E98;font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.02em;text-transform:uppercase">${MARK(16)}LinkPulse</span>
+    <span class="fit-brand" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:#8E8E98;font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.02em;text-transform:uppercase">${MARK(16)}LinkPulse</span>
   </div>
 </main>`,
   );
@@ -199,6 +224,12 @@ export function passwordPage(o: PasswordPageOpts): string {
 }
 
 export function unlockedPage(shortUrl: string, next: string, title: string | null): string {
+  // "Continue now" is a form button, not a link: Chrome preloads links on screen or under the
+  // pointer, and that preload of /:code was counted as a second visit (+2 on first unlock).
+  const target = new URL(next, 'http://x');
+  const hidden = [...target.searchParams]
+    .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
+    .join('');
   return shell(
     'Unlocked',
     `<main class="card">
@@ -209,7 +240,7 @@ export function unlockedPage(shortUrl: string, next: string, title: string | nul
     <span style="width:56px;height:56px;border-radius:50%;background:#D4FF00;display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(212,255,0,.35)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span>
     <h1 class="fd" style="margin:0;font-size:26px;font-weight:700;color:#FFFFFF">Unlocked</h1>
     <p style="margin:0;font-size:16px;color:#A1A1AA">Taking you to ${title ? esc(title) : 'the page'}…</p>
-    <a href="${esc(next)}" style="font-weight:700;min-height:44px;display:flex;align-items:center">Continue now</a>
+    <form method="get" action="${esc(target.pathname)}">${hidden}<button class="linkbtn" type="submit" style="font-weight:700;font-size:16px">Continue now</button></form>
   </div>
 </main>`,
     `<meta http-equiv="refresh" content="1;url=${esc(next)}">`,

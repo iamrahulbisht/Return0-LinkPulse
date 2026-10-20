@@ -1,35 +1,22 @@
+import { isbot } from 'isbot';
+
 export type ClickType = 'human' | 'preview_bot' | 'scanner' | 'suspicious';
 
 // Email and security link scanners open links to check them before a person does.
 const SCANNER_MARKERS = ['scanner', 'safelinks', 'urlscan', 'proofpoint', 'mimecast', 'barracuda', 'virustotal'];
 
-// Link-preview bots (chat apps, social sites) and generic crawlers / tools.
-const BOT_MARKERS = [
-  'facebookexternalhit',
-  'whatsapp',
-  'telegrambot',
-  'slackbot',
-  'twitterbot',
-  'discordbot',
-  'linkedinbot',
-  'googlebot',
-  'bingbot',
-  'bot',
-  'crawler',
-  'spider',
-  'preview',
-  'curl',
-  'wget',
-  'python-requests',
-  'headless',
-];
-
-/** Classifies a visit from its user agent alone. */
+/**
+ * Classifies a visit from its user agent alone.
+ * Bots come from `isbot`, a maintained list of crawlers, link-preview fetchers (WhatsApp, Slack, Embedly…),
+ * HTTP libraries (curl, axios, Go, okhttp…) and headless browsers. It matches whole patterns, so a phone
+ * like "CUBOT X30" is not a bot. A script that copies a real browser's user agent still looks human here.
+ */
 export function classifyUserAgent(ua: string | undefined | null): ClickType {
-  const s = (ua ?? '').trim().toLowerCase();
-  if (!s) return 'suspicious';
+  const raw = (ua ?? '').trim();
+  if (!raw) return 'suspicious';
+  const s = raw.toLowerCase();
   if (SCANNER_MARKERS.some((m) => s.includes(m))) return 'scanner';
-  if (BOT_MARKERS.some((m) => s.includes(m))) return 'preview_bot';
+  if (isbot(raw)) return 'preview_bot';
   return 'human';
 }
 

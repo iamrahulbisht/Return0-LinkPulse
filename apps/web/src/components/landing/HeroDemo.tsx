@@ -1,5 +1,4 @@
-import { SHORT_HOST } from '../../lib/api';
-import { Icon } from '../Icon';
+
 
 /**
  * Picture of the wizard and a live click, built from real markup so it stays sharp and readable.

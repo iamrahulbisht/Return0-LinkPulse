@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Icon, type IconName } from '../components/Icon';
 import { LogoMark } from '../components/Logo';
-import { HeroDemo } from '../components/landing/HeroDemo';
 import { Reveal } from '../components/landing/Reveal';
 
 const GRID_BG =

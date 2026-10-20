@@ -45,8 +45,12 @@ export function lifeCopy(link: Link, state: LinkStatus): { when: string; explain
 
 export const lifeLook = (s: LinkStatus) => LOOK[s];
 
-/** "Link life": the real state is pressed; pressing another one asks to switch the link to it (ChangeStateDialog). */
-export function LifeStrip({ link, onPick }: { link: Link; onPick: (s: LinkStatus) => void }) {
+/**
+ * "Link life": the real state is pressed; pressing another one asks to switch the link to it (ChangeStateDialog).
+ * Disabled is an admin takedown, so other users only see it while the link is actually disabled.
+ */
+export function LifeStrip({ link, isAdmin, onPick }: { link: Link; isAdmin: boolean; onPick: (s: LinkStatus) => void }) {
+  const states = LIFE_ORDER.filter((s) => s !== 'disabled' || isAdmin || link.status === 'disabled');
   return (
     <div className="flex flex-col gap-3 border-t border-line-soft pt-[18px]">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -54,7 +58,7 @@ export function LifeStrip({ link, onPick }: { link: Link; onPick: (s: LinkStatus
         <span className="text-[13.5px] text-text-4">Click a state to switch the link to it. Analytics are kept in every state.</span>
       </div>
       <div className="flex flex-wrap items-stretch gap-2.5">
-        {LIFE_ORDER.map((s) => {
+        {states.map((s) => {
           const look = LOOK[s];
           const on = s === link.status;
           return (

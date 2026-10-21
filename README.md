@@ -12,7 +12,7 @@
 - **Live Application**: [https://return0-linkpulse.vercel.app/](https://return0-linkpulse.vercel.app/)
 - **Demo Accounts**:
   - **Team Member**: `rb5939500@gmail.com` (Password: `rahulbisht`)
-  - **System Admin**: `piyush@gmail.com` (Password: `piyush123`)
+  - **System Admin**: `piyushnaula008@gmail.com` (Password: `piyush123`)
 
 ---
 
